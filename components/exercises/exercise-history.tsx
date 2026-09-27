@@ -27,7 +27,12 @@ export function ExerciseHistory({ id }: { id: string }) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader title={exercise.name} backHref="/exercises" backLabel="Exercises" />
+      <PageHeader
+        title={exercise.name}
+        subtitle={exercise.nameUk}
+        backHref="/exercises"
+        backLabel="Exercises"
+      />
       <main className="flex flex-col gap-3 px-4 py-5">
         {!store.ready ? (
           <p className="text-sm text-zinc-500">Loading…</p>
