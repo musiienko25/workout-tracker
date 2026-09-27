@@ -5,4 +5,7 @@ export type Exercise = {
   name: string;
   nameUk: string;
   workoutType: WorkoutType;
+  custom?: boolean;
 };
+
+export type ProgramTemplates = Partial<Record<WorkoutType, string[]>>;

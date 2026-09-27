@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { WORKOUT_TYPE_META, WORKOUT_TYPE_ORDER } from "@/lib/exercises";
@@ -27,25 +28,37 @@ export function StartWorkout() {
     <div className="flex flex-1 flex-col">
       <PageHeader title="Start Workout" backHref="/" backLabel="Home" />
       <main className="flex flex-col gap-3 px-4 py-5">
-        <p className="text-sm text-zinc-500">Обери програму. Минулі сети будуть на екрані тренування.</p>
+        <p className="text-sm text-zinc-500">
+          Обери програму. Список вправ на день можна змінити.
+        </p>
         {WORKOUT_TYPE_ORDER.map((type) => {
           const meta = WORKOUT_TYPE_META[type];
           const inProgress = store.drafts.some((draft) => draft.type === type);
           return (
-            <button
+            <div
               key={type}
-              type="button"
-              onClick={() => start(type)}
-              className="flex min-h-20 w-full flex-col items-start justify-center rounded-2xl border border-zinc-200 bg-white px-4 py-4 text-left active:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:active:bg-zinc-800"
+              className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
             >
-              <span className="text-lg font-semibold">{meta.label}</span>
-              <span className="text-sm text-zinc-500">{meta.description}</span>
-              {inProgress ? (
-                <span className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
-                  Продовжити незавершене
-                </span>
-              ) : null}
-            </button>
+              <button
+                type="button"
+                onClick={() => start(type)}
+                className="flex min-h-20 w-full flex-col items-start justify-center px-4 py-4 text-left active:bg-zinc-50 dark:active:bg-zinc-800"
+              >
+                <span className="text-lg font-semibold">{meta.label}</span>
+                <span className="text-sm text-zinc-500">{meta.description}</span>
+                {inProgress ? (
+                  <span className="mt-2 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                    Продовжити незавершене
+                  </span>
+                ) : null}
+              </button>
+              <Link
+                href={`/workout/plan/${type}`}
+                className="flex h-12 items-center border-t border-zinc-200 px-4 text-sm font-medium text-emerald-700 dark:border-zinc-800 dark:text-emerald-400"
+              >
+                Змінити план
+              </Link>
+            </div>
           );
         })}
       </main>

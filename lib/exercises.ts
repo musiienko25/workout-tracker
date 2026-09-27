@@ -1,4 +1,4 @@
-import type { Exercise, WorkoutType } from "@/types/exercise";
+import type { Exercise, ProgramTemplates, WorkoutType } from "@/types/exercise";
 
 export const WORKOUT_TYPE_ORDER: WorkoutType[] = [
   "chest_arms",
@@ -171,6 +171,59 @@ export function getExerciseNameUk(id: string): string | undefined {
 
 export function getExercisesByType(type: WorkoutType): Exercise[] {
   return exercises.filter((exercise) => exercise.workoutType === type);
+}
+
+export function getDefaultTemplateIds(type: WorkoutType): string[] {
+  return getExercisesByType(type).map((exercise) => exercise.id);
+}
+
+export function isExerciseRecord(value: unknown): value is Exercise {
+  if (!value || typeof value !== "object") return false;
+  const exercise = value as Exercise;
+  return (
+    typeof exercise.id === "string" &&
+    exercise.id.length > 0 &&
+    typeof exercise.name === "string" &&
+    exercise.name.trim().length > 0 &&
+    typeof exercise.nameUk === "string" &&
+    (exercise.workoutType === "chest_arms" ||
+      exercise.workoutType === "legs_shoulders" ||
+      exercise.workoutType === "back_core")
+  );
+}
+
+export function mergeExercises(customExercises: Exercise[]): Exercise[] {
+  const byId = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+  for (const exercise of customExercises) {
+    byId.set(exercise.id, { ...exercise, custom: true, nameUk: exercise.nameUk ?? "" });
+  }
+  return [...byId.values()];
+}
+
+export function resolveExercise(
+  id: string,
+  customExercises: Exercise[] = [],
+): Exercise | undefined {
+  return getExerciseById(id) ?? customExercises.find((exercise) => exercise.id === id);
+}
+
+export function getTemplateIds(type: WorkoutType, templates: ProgramTemplates): string[] {
+  const saved = templates[type];
+  if (Array.isArray(saved) && saved.every((id) => typeof id === "string")) {
+    return saved;
+  }
+  return getDefaultTemplateIds(type);
+}
+
+export function getTemplateExercises(
+  type: WorkoutType,
+  customExercises: Exercise[],
+  templates: ProgramTemplates,
+): Exercise[] {
+  const byId = new Map(mergeExercises(customExercises).map((exercise) => [exercise.id, exercise]));
+  return getTemplateIds(type, templates)
+    .map((id) => byId.get(id))
+    .filter((exercise): exercise is Exercise => Boolean(exercise));
 }
 
 export function normalizeWorkoutType(value: unknown): WorkoutType | null {

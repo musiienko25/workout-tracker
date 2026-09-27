@@ -1,8 +1,14 @@
-import { normalizeWorkoutType } from "@/lib/exercises";
+import {
+  getDefaultTemplateIds,
+  isExerciseRecord,
+  normalizeWorkoutType,
+} from "@/lib/exercises";
 import { seedWorkouts } from "@/lib/seed";
 import { supabase } from "@/lib/supabase";
-import type { WorkoutType } from "@/types/exercise";
+import type { Exercise, ProgramTemplates, WorkoutType } from "@/types/exercise";
 import type { DraftWorkout, Workout, WorkoutSet } from "@/types/workout";
+
+export const LIBRARY_ROW_ID = "__library__";
 
 /**
  * Persistence boundary for the workout diary.
@@ -16,6 +22,8 @@ export type StoreSnapshot = {
   error: string | null;
   workouts: Workout[];
   drafts: DraftWorkout[];
+  customExercises: Exercise[];
+  templates: ProgramTemplates;
 };
 
 type WorkoutRow = {
@@ -35,6 +43,8 @@ const SERVER_SNAPSHOT: StoreSnapshot = {
   error: null,
   workouts: [],
   drafts: [],
+  customExercises: [],
+  templates: {},
 };
 
 let clientSnapshot: StoreSnapshot = SERVER_SNAPSHOT;
@@ -139,6 +149,7 @@ function splitRows(rows: WorkoutRow[]): { workouts: Workout[]; drafts: DraftWork
   const workouts: Workout[] = [];
   const drafts: DraftWorkout[] = [];
   for (const row of rows) {
+    if (row.id === LIBRARY_ROW_ID) continue;
     if (row.completed) {
       const workout = rowToWorkout(row);
       if (workout) workouts.push(workout);
@@ -148,6 +159,34 @@ function splitRows(rows: WorkoutRow[]): { workouts: Workout[]; drafts: DraftWork
     }
   }
   return { workouts, drafts };
+}
+
+function parseTemplates(value: unknown): ProgramTemplates {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const templates: ProgramTemplates = {};
+  for (const type of ["chest_arms", "legs_shoulders", "back_core"] as const) {
+    const ids = (value as ProgramTemplates)[type];
+    if (Array.isArray(ids) && ids.every((id) => typeof id === "string")) {
+      templates[type] = ids.filter((id) => id.length > 0);
+    }
+  }
+  return templates;
+}
+
+function parseLibrary(rows: WorkoutRow[]): Pick<StoreSnapshot, "customExercises" | "templates"> {
+  const row = rows.find((item) => item.id === LIBRARY_ROW_ID);
+  if (!row || !row.exercises || typeof row.exercises !== "object" || Array.isArray(row.exercises)) {
+    return { customExercises: [], templates: {} };
+  }
+  const payload = row.exercises as { customExercises?: unknown; templates?: unknown };
+  const customExercises = Array.isArray(payload.customExercises)
+    ? payload.customExercises.filter(isExerciseRecord).map((exercise) => ({
+        ...exercise,
+        custom: true,
+        nameUk: exercise.nameUk ?? "",
+      }))
+    : [];
+  return { customExercises, templates: parseTemplates(payload.templates) };
 }
 
 function isMissingTable(error: { message?: string; code?: string } | null): boolean {
@@ -202,7 +241,9 @@ async function upsertRow(row: WorkoutRow): Promise<void> {
 
 async function seedIfEmpty(userId: string, rows: WorkoutRow[]): Promise<WorkoutRow[]> {
   const existingIds = new Set(rows.map((row) => row.id));
-  const missing = seedWorkouts.filter((workout) => !existingIds.has(workout.id));
+  const missing = seedWorkouts.filter(
+    (workout) => workout.id !== LIBRARY_ROW_ID && !existingIds.has(workout.id),
+  );
   if (missing.length === 0) return rows;
   const seeded = missing.map((workout) => workoutToRow(userId, workout));
   const { error } = await supabase.from("workouts").upsert(seeded, { onConflict: "user_id,id" });
@@ -223,6 +264,8 @@ async function hydrate(userId: string | null): Promise<void> {
       error: null,
       workouts: [],
       drafts: [],
+      customExercises: [],
+      templates: {},
     });
     return;
   }
@@ -249,6 +292,8 @@ async function hydrate(userId: string | null): Promise<void> {
       error: error.message,
       workouts: [],
       drafts: [],
+      customExercises: [],
+      templates: {},
     });
     return;
   }
@@ -256,6 +301,7 @@ async function hydrate(userId: string | null): Promise<void> {
   const rows = await seedIfEmpty(userId, (data ?? []) as WorkoutRow[]);
   if (token !== hydrateToken) return;
   const { workouts, drafts } = splitRows(rows);
+  const library = parseLibrary(rows);
   setSnapshot({
     ready: true,
     userId,
@@ -263,6 +309,8 @@ async function hydrate(userId: string | null): Promise<void> {
     error: null,
     workouts,
     drafts,
+    customExercises: library.customExercises,
+    templates: library.templates,
   });
 }
 
@@ -324,7 +372,67 @@ export function saveWorkout(workout: Workout): void {
   void upsertRow(workoutToRow(userId, workout));
 }
 
+export function saveLibrary(next: {
+  customExercises?: Exercise[];
+  templates?: ProgramTemplates;
+}): void {
+  const userId = requireUserId();
+  const customExercises = next.customExercises ?? clientSnapshot.customExercises;
+  const templates = next.templates ?? clientSnapshot.templates;
+  setSnapshot({ ...clientSnapshot, customExercises, templates, error: null });
+  void upsertRow({
+    user_id: userId,
+    id: LIBRARY_ROW_ID,
+    date: "1970-01-01",
+    created_at: new Date().toISOString(),
+    type: "library",
+    completed: true,
+    exercises: { customExercises, templates },
+  });
+}
+
+function templateIdsFor(type: WorkoutType): string[] {
+  return clientSnapshot.templates[type] ?? getDefaultTemplateIds(type);
+}
+
+export function addCustomExercise(exercise: Omit<Exercise, "custom">): Exercise {
+  const created: Exercise = { ...exercise, custom: true, nameUk: exercise.nameUk.trim() };
+  const customExercises = [
+    created,
+    ...clientSnapshot.customExercises.filter((item) => item.id !== created.id),
+  ];
+  const currentIds = templateIdsFor(created.workoutType);
+  const templates: ProgramTemplates = {
+    ...clientSnapshot.templates,
+    [created.workoutType]: currentIds.includes(created.id)
+      ? currentIds
+      : [...currentIds, created.id],
+  };
+  saveLibrary({ customExercises, templates });
+  return created;
+}
+
+export function removeCustomExercise(id: string): void {
+  const customExercises = clientSnapshot.customExercises.filter((exercise) => exercise.id !== id);
+  const templates: ProgramTemplates = { ...clientSnapshot.templates };
+  for (const type of ["chest_arms", "legs_shoulders", "back_core"] as const) {
+    const ids = templateIdsFor(type).filter((exerciseId) => exerciseId !== id);
+    templates[type] = ids;
+  }
+  saveLibrary({ customExercises, templates });
+}
+
+export function setProgramTemplate(type: WorkoutType, ids: string[]): void {
+  saveLibrary({
+    templates: {
+      ...clientSnapshot.templates,
+      [type]: ids,
+    },
+  });
+}
+
 export function deleteWorkout(id: string): void {
+  if (id === LIBRARY_ROW_ID) return;
   const userId = requireUserId();
   setSnapshot({
     ...clientSnapshot,

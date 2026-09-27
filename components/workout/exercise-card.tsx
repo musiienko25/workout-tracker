@@ -20,12 +20,14 @@ export function ExerciseCard({
   sets,
   fieldErrors,
   onChange,
+  onRemove,
 }: {
   exerciseId: string;
   previous: PreviousPerformance | null;
   sets: DraftSet[];
   fieldErrors: Record<string, FieldError>;
   onChange: (sets: DraftSet[]) => void;
+  onRemove?: () => void;
 }) {
   function update(setId: string, field: "weight" | "reps", value: string) {
     onChange(
@@ -50,9 +52,20 @@ export function ExerciseCard({
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <h2>
-        <ExerciseName id={exerciseId} titleClassName="text-lg font-semibold tracking-tight" />
-      </h2>
+      <div className="flex items-start justify-between gap-2">
+        <h2>
+          <ExerciseName id={exerciseId} titleClassName="text-lg font-semibold tracking-tight" />
+        </h2>
+        {onRemove ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="h-10 shrink-0 px-1 text-sm font-medium text-zinc-500"
+          >
+            Прибрати
+          </button>
+        ) : null}
+      </div>
 
       <div className="mt-3 rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
         <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">

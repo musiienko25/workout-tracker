@@ -3,13 +3,13 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
-import { getExerciseById } from "@/lib/exercises";
+import { resolveExercise } from "@/lib/exercises";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import { formatSets, formatShortDate, getExerciseHistory } from "@/lib/workout-utils";
 
 export function ExerciseHistory({ id }: { id: string }) {
   const store = useWorkoutStore();
-  const exercise = getExerciseById(id);
+  const exercise = resolveExercise(id, store.customExercises);
   const entries = store.ready ? getExerciseHistory(store.workouts, id) : [];
 
   useEffect(() => {

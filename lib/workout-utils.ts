@@ -1,5 +1,5 @@
-import { getExercisesByType } from "@/lib/exercises";
-import { getLastWorkoutForExercise } from "@/lib/storage";
+import { getTemplateExercises } from "@/lib/exercises";
+import { getClientSnapshot, getLastWorkoutForExercise } from "@/lib/storage";
 import type { WorkoutType } from "@/types/exercise";
 import type {
   DraftSet,
@@ -99,26 +99,31 @@ export function emptyDraftSet(template?: Pick<DraftSet, "weight" | "reps">): Dra
   };
 }
 
+export function draftExerciseFromId(exerciseId: string) {
+  const previous = getLastWorkoutForExercise(exerciseId);
+  return {
+    exerciseId,
+    sets: previous
+      ? previous.sets.map((set) => ({
+          id: createId(),
+          weight: formatWeight(set.weight),
+          reps: String(set.reps),
+        }))
+      : [emptyDraftSet()],
+  };
+}
+
 export function createDraft(type: WorkoutType): DraftWorkout {
   const now = new Date();
+  const { customExercises, templates } = getClientSnapshot();
   return {
     id: createId(),
     date: todayDateString(now),
     createdAt: now.toISOString(),
     type,
-    exercises: getExercisesByType(type).map((exercise) => {
-      const previous = getLastWorkoutForExercise(exercise.id);
-      return {
-        exerciseId: exercise.id,
-        sets: previous
-          ? previous.sets.map((set) => ({
-              id: createId(),
-              weight: formatWeight(set.weight),
-              reps: String(set.reps),
-            }))
-          : [emptyDraftSet()],
-      };
-    }),
+    exercises: getTemplateExercises(type, customExercises, templates).map((exercise) =>
+      draftExerciseFromId(exercise.id),
+    ),
   };
 }
 

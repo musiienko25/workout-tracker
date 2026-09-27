@@ -1,4 +1,7 @@
-import { getExerciseById, getExerciseName } from "@/lib/exercises";
+"use client";
+
+import { resolveExercise } from "@/lib/exercises";
+import { useWorkoutStore } from "@/lib/use-workout-store";
 
 export function ExerciseName({
   id,
@@ -11,8 +14,9 @@ export function ExerciseName({
   nameUk?: string;
   titleClassName?: string;
 }) {
-  const exercise = id ? getExerciseById(id) : undefined;
-  const title = name ?? exercise?.name ?? (id ? getExerciseName(id) : "Unknown exercise");
+  const store = useWorkoutStore();
+  const exercise = id ? resolveExercise(id, store.customExercises) : undefined;
+  const title = name ?? exercise?.name ?? "Unknown exercise";
   const translation = nameUk ?? exercise?.nameUk;
 
   return (
