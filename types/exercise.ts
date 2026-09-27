@@ -1,7 +1,8 @@
-export type WorkoutType = "push" | "pull" | "legs";
+export type WorkoutType = "full";
 
 export type Exercise = {
   id: string;
   name: string;
+  nameUk: string;
   workoutType: WorkoutType;
 };

@@ -1,3 +1,4 @@
+import { isWorkoutType } from "@/lib/exercises";
 import { seedWorkouts } from "@/lib/seed";
 import type { WorkoutType } from "@/types/exercise";
 import type { DraftWorkout, Workout, WorkoutSet } from "@/types/workout";
@@ -10,7 +11,7 @@ import type { DraftWorkout, Workout, WorkoutSet } from "@/types/workout";
 
 const WORKOUTS_KEY = "workout-tracker:workouts";
 const DRAFTS_KEY = "workout-tracker:drafts";
-const SEED_FLAG_KEY = "workout-tracker:v1-seeded";
+const SEED_FLAG_KEY = "workout-tracker:v4-seeded";
 
 export type StoreSnapshot = {
   ready: boolean;
@@ -66,7 +67,7 @@ function isWorkout(value: unknown): value is Workout {
     typeof workout.id === "string" &&
     typeof workout.date === "string" &&
     typeof workout.createdAt === "string" &&
-    (workout.type === "push" || workout.type === "pull" || workout.type === "legs") &&
+    isWorkoutType(workout.type) &&
     typeof workout.completed === "boolean" &&
     Array.isArray(workout.exercises) &&
     workout.exercises.every(
@@ -86,7 +87,7 @@ function isDraft(value: unknown): value is DraftWorkout {
     typeof draft.id === "string" &&
     typeof draft.date === "string" &&
     typeof draft.createdAt === "string" &&
-    (draft.type === "push" || draft.type === "pull" || draft.type === "legs") &&
+    isWorkoutType(draft.type) &&
     Array.isArray(draft.exercises) &&
     draft.exercises.every(
       (exercise) =>
@@ -116,11 +117,20 @@ function parseDrafts(value: unknown): DraftWorkout[] {
 
 function ensureSeedData(): void {
   if (!canUseStorage()) return;
-  if (window.localStorage.getItem(SEED_FLAG_KEY) === "1") return;
-  if (window.localStorage.getItem(WORKOUTS_KEY) === null) {
-    writeJson(WORKOUTS_KEY, seedWorkouts);
-  }
+  const flagged = window.localStorage.getItem(SEED_FLAG_KEY) === "1";
+  const stored = readJson(WORKOUTS_KEY);
+  const allLegacy =
+    Array.isArray(stored) &&
+    stored.length > 0 &&
+    stored.every((item) => !item || typeof item !== "object" || !isWorkoutType((item as Workout).type));
+
+  if (flagged && !allLegacy) return;
+
+  writeJson(WORKOUTS_KEY, seedWorkouts);
+  writeJson(DRAFTS_KEY, []);
   window.localStorage.setItem(SEED_FLAG_KEY, "1");
+  clientSnapshot = null;
+  emitChange();
 }
 
 function emitChange(): void {
@@ -129,8 +139,8 @@ function emitChange(): void {
 
 function loadSnapshot(): StoreSnapshot {
   if (!canUseStorage()) return SERVER_SNAPSHOT;
-  if (clientSnapshot?.ready) return clientSnapshot;
   ensureSeedData();
+  if (clientSnapshot?.ready) return clientSnapshot;
   clientSnapshot = {
     ready: true,
     workouts: parseWorkouts(readJson(WORKOUTS_KEY)),

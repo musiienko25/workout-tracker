@@ -1,47 +1,60 @@
 import type { Exercise, WorkoutType } from "@/types/exercise";
 
-export const WORKOUT_TYPE_ORDER: WorkoutType[] = ["push", "pull", "legs"];
+export const WORKOUT_TYPE_ORDER: WorkoutType[] = ["full"];
 
 export const WORKOUT_TYPE_META: Record<
   WorkoutType,
   { label: string; description: string }
 > = {
-  push: {
-    label: "Push",
-    description: "Chest, shoulders, triceps",
-  },
-  pull: {
-    label: "Pull",
-    description: "Back and biceps",
-  },
-  legs: {
-    label: "Legs",
-    description: "Quads, hamstrings, calves",
+  full: {
+    label: "Груди, біцепс, трицепс",
+    description: "Повний день",
   },
 };
 
 export const exercises: Exercise[] = [
-  { id: "bench-press", name: "Bench Press", workoutType: "push" },
   {
-    id: "incline-dumbbell-press",
-    name: "Incline Dumbbell Press",
-    workoutType: "push",
+    id: "incline-lever-chest-press",
+    name: "Incline Lever Chest Press",
+    nameUk: "жим у важільному тренажері під нахилом",
+    workoutType: "full",
   },
-  { id: "shoulder-press", name: "Shoulder Press", workoutType: "push" },
-  { id: "lateral-raises", name: "Lateral Raises", workoutType: "push" },
-  { id: "triceps-pushdown", name: "Triceps Pushdown", workoutType: "push" },
-
-  { id: "pull-ups", name: "Pull Ups", workoutType: "pull" },
-  { id: "lat-pulldown", name: "Lat Pulldown", workoutType: "pull" },
-  { id: "barbell-row", name: "Barbell Row", workoutType: "pull" },
-  { id: "seated-cable-row", name: "Seated Cable Row", workoutType: "pull" },
-  { id: "biceps-curl", name: "Biceps Curl", workoutType: "pull" },
-
-  { id: "squat", name: "Squat", workoutType: "legs" },
-  { id: "romanian-deadlift", name: "Romanian Deadlift", workoutType: "legs" },
-  { id: "leg-press", name: "Leg Press", workoutType: "legs" },
-  { id: "leg-curl", name: "Leg Curl", workoutType: "legs" },
-  { id: "calf-raises", name: "Calf Raises", workoutType: "legs" },
+  {
+    id: "chest-fly-machine",
+    name: "Chest Fly Machine",
+    nameUk: "тренажер для зведення рук на груди",
+    workoutType: "full",
+  },
+  {
+    id: "seated-barbell-biceps-curl",
+    name: "Seated Barbell Biceps Curl",
+    nameUk: "підйом штанги на біцепс сидячи",
+    workoutType: "full",
+  },
+  {
+    id: "triceps-rope-pushdown",
+    name: "Triceps Rope Pushdown",
+    nameUk: "розгинання рук на трицепс із канатом у верхньому блоці",
+    workoutType: "full",
+  },
+  {
+    id: "captains-chair-leg-raise",
+    name: "Captain’s Chair Leg Raise",
+    nameUk: "підйом ніг у упорі на брусах",
+    workoutType: "full",
+  },
+  {
+    id: "push-ups",
+    name: "Push-Ups",
+    nameUk: "віджимання від підлоги",
+    workoutType: "full",
+  },
+  {
+    id: "standing-calf-raise-kettlebell",
+    name: "Standing Calf Raise with Kettlebell",
+    nameUk: "підйом на носки з гирею",
+    workoutType: "full",
+  },
 ];
 
 const exercisesById = new Map(exercises.map((exercise) => [exercise.id, exercise]));
@@ -54,6 +67,14 @@ export function getExerciseName(id: string): string {
   return exercisesById.get(id)?.name ?? "Unknown exercise";
 }
 
+export function getExerciseNameUk(id: string): string | undefined {
+  return exercisesById.get(id)?.nameUk;
+}
+
 export function getExercisesByType(type: WorkoutType): Exercise[] {
   return exercises.filter((exercise) => exercise.workoutType === type);
+}
+
+export function isWorkoutType(value: unknown): value is WorkoutType {
+  return value === "full";
 }

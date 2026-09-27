@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
-import { getExerciseName, WORKOUT_TYPE_META } from "@/lib/exercises";
+import { ExerciseName } from "@/components/exercises/exercise-name";
+import { WORKOUT_TYPE_META } from "@/lib/exercises";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import { formatSet, groupWorkoutsByDate, listCompletedWorkouts } from "@/lib/workout-utils";
 
@@ -39,9 +40,10 @@ export function HistoryList() {
                   <ul className="mt-3 flex flex-col gap-3">
                     {workout.exercises.map((exercise) => (
                       <li key={exercise.exerciseId}>
-                        <p className="text-sm font-medium">
-                          {getExerciseName(exercise.exerciseId)}
-                        </p>
+                        <ExerciseName
+                          id={exercise.exerciseId}
+                          titleClassName="text-sm font-medium"
+                        />
                         {exercise.sets.map((set) => (
                           <p
                             key={set.id}

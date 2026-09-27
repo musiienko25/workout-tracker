@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
+import { ExerciseName } from "@/components/exercises/exercise-name";
 import { WORKOUT_TYPE_META, WORKOUT_TYPE_ORDER, getExercisesByType } from "@/lib/exercises";
 
 export function ExerciseLibrary() {
@@ -24,9 +25,13 @@ export function ExerciseLibrary() {
                 <li key={exercise.id}>
                   <Link
                     href={`/exercises/${exercise.id}`}
-                    className="flex h-14 items-center rounded-2xl border border-zinc-200 bg-white px-4 font-medium active:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:active:bg-zinc-800"
+                    className="flex min-h-14 items-center rounded-2xl border border-zinc-200 bg-white px-4 py-2.5 active:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:active:bg-zinc-800"
                   >
-                    {exercise.name}
+                    <ExerciseName
+                      name={exercise.name}
+                      nameUk={exercise.nameUk}
+                      titleClassName="text-base font-medium"
+                    />
                   </Link>
                 </li>
               ))}

@@ -2,11 +2,13 @@ import Link from "next/link";
 
 export function PageHeader({
   title,
+  subtitle,
   eyebrow,
   backHref,
   backLabel = "Back",
 }: {
   title: string;
+  subtitle?: string;
   eyebrow?: string;
   backHref?: string;
   backLabel?: string;
@@ -29,6 +31,9 @@ export function PageHeader({
             </p>
           ) : null}
           <h1 className="truncate text-xl font-semibold tracking-tight">{title}</h1>
+          {subtitle ? (
+            <p className="truncate text-xs text-zinc-500">{subtitle}</p>
+          ) : null}
         </div>
       </div>
     </header>

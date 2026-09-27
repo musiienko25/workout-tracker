@@ -4,7 +4,8 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
-import { getExerciseName, WORKOUT_TYPE_META } from "@/lib/exercises";
+import { ExerciseName } from "@/components/exercises/exercise-name";
+import { WORKOUT_TYPE_META } from "@/lib/exercises";
 import { deleteWorkout } from "@/lib/storage";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import { formatLongDate, formatSet } from "@/lib/workout-utils";
@@ -56,8 +57,8 @@ export function WorkoutDetail({ id }: { id: string }) {
       <main className="flex flex-col gap-4 px-4 py-5">
         {workout.exercises.map((exercise) => (
           <section key={exercise.exerciseId}>
-            <Link href={`/exercises/${exercise.exerciseId}`} className="text-base font-semibold">
-              {getExerciseName(exercise.exerciseId)}
+            <Link href={`/exercises/${exercise.exerciseId}`} className="inline-block">
+              <ExerciseName id={exercise.exerciseId} />
             </Link>
             <ul className="mt-1">
               {exercise.sets.map((set) => (

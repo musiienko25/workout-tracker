@@ -1,6 +1,6 @@
 "use client";
 
-import { getExerciseName } from "@/lib/exercises";
+import { ExerciseName } from "@/components/exercises/exercise-name";
 import {
   emptyDraftSet,
   formatSets,
@@ -50,8 +50,8 @@ export function ExerciseCard({
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-      <h2 className="text-lg font-semibold tracking-tight">
-        {getExerciseName(exerciseId)}
+      <h2>
+        <ExerciseName id={exerciseId} titleClassName="text-lg font-semibold tracking-tight" />
       </h2>
 
       <div className="mt-3 rounded-lg bg-zinc-100 px-3 py-2 dark:bg-zinc-800">
