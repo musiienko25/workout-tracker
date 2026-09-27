@@ -239,19 +239,20 @@ async function upsertRow(row: WorkoutRow): Promise<void> {
   }
 }
 
-async function seedIfEmpty(userId: string, rows: WorkoutRow[]): Promise<WorkoutRow[]> {
-  const existingIds = new Set(rows.map((row) => row.id));
-  const missing = seedWorkouts.filter(
-    (workout) => workout.id !== LIBRARY_ROW_ID && !existingIds.has(workout.id),
-  );
-  if (missing.length === 0) return rows;
-  const seeded = missing.map((workout) => workoutToRow(userId, workout));
-  const { error } = await supabase.from("workouts").upsert(seeded, { onConflict: "user_id,id" });
+const SEED_WORKOUT_IDS = new Set(seedWorkouts.map((workout) => workout.id));
+
+async function removeDemoWorkouts(userId: string, rows: WorkoutRow[]): Promise<WorkoutRow[]> {
+  const seeded = rows.filter((row) => SEED_WORKOUT_IDS.has(row.id));
+  if (seeded.length === 0) return rows;
+  const { error } = await supabase
+    .from("workouts")
+    .delete()
+    .eq("user_id", userId)
+    .in("id", [...SEED_WORKOUT_IDS]);
   if (error) {
     console.error(error);
-    return rows;
   }
-  return [...seeded, ...rows];
+  return rows.filter((row) => !SEED_WORKOUT_IDS.has(row.id));
 }
 
 async function hydrate(userId: string | null): Promise<void> {
@@ -298,7 +299,7 @@ async function hydrate(userId: string | null): Promise<void> {
     return;
   }
 
-  const rows = await seedIfEmpty(userId, (data ?? []) as WorkoutRow[]);
+  const rows = await removeDemoWorkouts(userId, (data ?? []) as WorkoutRow[]);
   if (token !== hydrateToken) return;
   const { workouts, drafts } = splitRows(rows);
   const library = parseLibrary(rows);
