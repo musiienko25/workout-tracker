@@ -1,15 +1,18 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 export function PageHeader({
   title,
   subtitle,
   eyebrow,
+  action,
   backHref,
   backLabel = "Back",
 }: {
   title: string;
   subtitle?: string;
   eyebrow?: string;
+  action?: ReactNode;
   backHref?: string;
   backLabel?: string;
 }) {
@@ -35,6 +38,7 @@ export function PageHeader({
             <p className="truncate text-xs text-zinc-500">{subtitle}</p>
           ) : null}
         </div>
+        {action ? <div className="ml-auto shrink-0">{action}</div> : null}
       </div>
     </header>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
+import { signOut } from "@/lib/auth";
 import { WORKOUT_TYPE_META } from "@/lib/exercises";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import {
@@ -18,8 +19,22 @@ export function HomeScreen() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <PageHeader title="Workout" />
+      <PageHeader
+        title="Workout"
+        action={
+          <button
+            type="button"
+            onClick={() => void signOut()}
+            className="inline-flex h-11 items-center rounded-lg px-2 text-sm font-medium text-zinc-500"
+          >
+            Sign out
+          </button>
+        }
+      />
       <main className="flex flex-1 flex-col gap-4 px-4 py-5">
+        {store.error ? (
+          <p className="text-sm font-medium text-red-600">{store.error}</p>
+        ) : null}
         {!store.ready ? (
           <p className="text-sm text-zinc-500">Loading…</p>
         ) : (

@@ -1,51 +1,54 @@
 import { isWorkoutType } from "@/lib/exercises";
 import { seedWorkouts } from "@/lib/seed";
+import { supabase } from "@/lib/supabase";
 import type { WorkoutType } from "@/types/exercise";
 import type { DraftWorkout, Workout, WorkoutSet } from "@/types/workout";
 
 /**
  * Persistence boundary for the workout diary.
- * UI should read this through `useWorkoutStore` and write through these functions.
- * Replace this module to move storage to Supabase/PostgreSQL.
+ * UI reads this through `useWorkoutStore` and writes through these functions.
  */
-
-const WORKOUTS_KEY = "workout-tracker:workouts";
-const DRAFTS_KEY = "workout-tracker:drafts";
-const SEED_FLAG_KEY = "workout-tracker:v4-seeded";
 
 export type StoreSnapshot = {
   ready: boolean;
+  userId: string | null;
+  setupNeeded: boolean;
+  error: string | null;
   workouts: Workout[];
   drafts: DraftWorkout[];
 };
 
+type WorkoutRow = {
+  user_id: string;
+  id: string;
+  date: string;
+  created_at: string;
+  type: string;
+  completed: boolean;
+  exercises: unknown;
+};
+
 const SERVER_SNAPSHOT: StoreSnapshot = {
   ready: false,
+  userId: null,
+  setupNeeded: false,
+  error: null,
   workouts: [],
   drafts: [],
 };
 
-let clientSnapshot: StoreSnapshot | null = null;
+let clientSnapshot: StoreSnapshot = SERVER_SNAPSHOT;
 const listeners = new Set<() => void>();
+let authBound = false;
+let hydrateToken = 0;
 
-function canUseStorage(): boolean {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+function emitChange(): void {
+  for (const listener of listeners) listener();
 }
 
-function readJson(key: string): unknown {
-  if (!canUseStorage()) return null;
-  const raw = window.localStorage.getItem(key);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return null;
-  }
-}
-
-function writeJson(key: string, value: unknown): void {
-  if (!canUseStorage()) return;
-  window.localStorage.setItem(key, JSON.stringify(value));
+function setSnapshot(next: StoreSnapshot): void {
+  clientSnapshot = next;
+  emitChange();
 }
 
 function isWorkoutSet(value: unknown): value is WorkoutSet {
@@ -105,66 +108,182 @@ function isDraft(value: unknown): value is DraftWorkout {
   );
 }
 
-function parseWorkouts(value: unknown): Workout[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(isWorkout);
-}
-
-function parseDrafts(value: unknown): DraftWorkout[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter(isDraft);
-}
-
-function ensureSeedData(): void {
-  if (!canUseStorage()) return;
-  const flagged = window.localStorage.getItem(SEED_FLAG_KEY) === "1";
-  const stored = readJson(WORKOUTS_KEY);
-  const allLegacy =
-    Array.isArray(stored) &&
-    stored.length > 0 &&
-    stored.every((item) => !item || typeof item !== "object" || !isWorkoutType((item as Workout).type));
-
-  if (flagged && !allLegacy) return;
-
-  writeJson(WORKOUTS_KEY, seedWorkouts);
-  writeJson(DRAFTS_KEY, []);
-  window.localStorage.setItem(SEED_FLAG_KEY, "1");
-  clientSnapshot = null;
-  emitChange();
-}
-
-function emitChange(): void {
-  for (const listener of listeners) listener();
-}
-
-function loadSnapshot(): StoreSnapshot {
-  if (!canUseStorage()) return SERVER_SNAPSHOT;
-  ensureSeedData();
-  if (clientSnapshot?.ready) return clientSnapshot;
-  clientSnapshot = {
-    ready: true,
-    workouts: parseWorkouts(readJson(WORKOUTS_KEY)),
-    drafts: parseDrafts(readJson(DRAFTS_KEY)),
+function rowToWorkout(row: WorkoutRow): Workout | null {
+  const workout = {
+    id: row.id,
+    date: row.date,
+    createdAt: row.created_at,
+    type: row.type,
+    completed: true,
+    exercises: row.exercises,
   };
-  return clientSnapshot;
+  return isWorkout(workout) ? workout : null;
 }
 
-function commit(
-  next: StoreSnapshot,
-  keys: { workouts?: boolean; drafts?: boolean },
-): void {
-  clientSnapshot = next;
-  if (keys.workouts) writeJson(WORKOUTS_KEY, next.workouts);
-  if (keys.drafts) writeJson(DRAFTS_KEY, next.drafts);
-  emitChange();
+function rowToDraft(row: WorkoutRow): DraftWorkout | null {
+  const draft = {
+    id: row.id,
+    date: row.date,
+    createdAt: row.created_at,
+    type: row.type,
+    exercises: row.exercises,
+  };
+  return isDraft(draft) ? draft : null;
 }
 
-function requireSnapshot(): StoreSnapshot {
-  const snapshot = loadSnapshot();
-  if (!snapshot.ready) {
-    throw new Error("Workout storage is only available in the browser.");
+function splitRows(rows: WorkoutRow[]): { workouts: Workout[]; drafts: DraftWorkout[] } {
+  const workouts: Workout[] = [];
+  const drafts: DraftWorkout[] = [];
+  for (const row of rows) {
+    if (row.completed) {
+      const workout = rowToWorkout(row);
+      if (workout) workouts.push(workout);
+    } else {
+      const draft = rowToDraft(row);
+      if (draft) drafts.push(draft);
+    }
   }
-  return snapshot;
+  return { workouts, drafts };
+}
+
+function isMissingTable(error: { message?: string; code?: string } | null): boolean {
+  if (!error) return false;
+  const message = error.message ?? "";
+  return (
+    error.code === "PGRST205" ||
+    error.code === "42P01" ||
+    message.includes("Could not find the table") ||
+    message.includes("does not exist")
+  );
+}
+
+function requireUserId(): string {
+  if (!clientSnapshot.userId) {
+    throw new Error("Sign in to save workouts.");
+  }
+  return clientSnapshot.userId;
+}
+
+function workoutToRow(userId: string, workout: Workout): WorkoutRow {
+  return {
+    user_id: userId,
+    id: workout.id,
+    date: workout.date,
+    created_at: workout.createdAt,
+    type: workout.type,
+    completed: true,
+    exercises: workout.exercises,
+  };
+}
+
+function draftToRow(userId: string, draft: DraftWorkout): WorkoutRow {
+  return {
+    user_id: userId,
+    id: draft.id,
+    date: draft.date,
+    created_at: draft.createdAt,
+    type: draft.type,
+    completed: false,
+    exercises: draft.exercises,
+  };
+}
+
+async function upsertRow(row: WorkoutRow): Promise<void> {
+  const { error } = await supabase.from("workouts").upsert(row, { onConflict: "user_id,id" });
+  if (error) {
+    console.error(error);
+    setSnapshot({ ...clientSnapshot, error: error.message, setupNeeded: isMissingTable(error) });
+  }
+}
+
+async function seedIfEmpty(userId: string, rows: WorkoutRow[]): Promise<WorkoutRow[]> {
+  if (rows.some((row) => row.completed)) return rows;
+  const seeded = seedWorkouts.map((workout) => workoutToRow(userId, workout));
+  const { error } = await supabase.from("workouts").upsert(seeded, { onConflict: "user_id,id" });
+  if (error) {
+    console.error(error);
+    return rows;
+  }
+  return [...seeded, ...rows];
+}
+
+async function hydrate(userId: string | null): Promise<void> {
+  const token = ++hydrateToken;
+  if (!userId) {
+    setSnapshot({
+      ready: true,
+      userId: null,
+      setupNeeded: false,
+      error: null,
+      workouts: [],
+      drafts: [],
+    });
+    return;
+  }
+
+  setSnapshot({
+    ...clientSnapshot,
+    ready: false,
+    userId,
+    error: null,
+  });
+
+  const { data, error } = await supabase
+    .from("workouts")
+    .select("user_id,id,date,created_at,type,completed,exercises")
+    .eq("user_id", userId);
+
+  if (token !== hydrateToken) return;
+
+  if (error) {
+    setSnapshot({
+      ready: true,
+      userId,
+      setupNeeded: isMissingTable(error),
+      error: error.message,
+      workouts: [],
+      drafts: [],
+    });
+    return;
+  }
+
+  const rows = await seedIfEmpty(userId, (data ?? []) as WorkoutRow[]);
+  if (token !== hydrateToken) return;
+  const { workouts, drafts } = splitRows(rows);
+  setSnapshot({
+    ready: true,
+    userId,
+    setupNeeded: false,
+    error: null,
+    workouts,
+    drafts,
+  });
+}
+
+export function bindAuthToStore(): () => void {
+  if (authBound) return () => undefined;
+  authBound = true;
+
+  void supabase.auth.getSession().then(
+    ({ data }) => {
+      void hydrate(data.session?.user.id ?? null);
+    },
+    () => {
+      void hydrate(null);
+    },
+  );
+
+  const {
+    data: { subscription },
+  } = supabase.auth.onAuthStateChange((event, session) => {
+    if (event === "INITIAL_SESSION") return;
+    void hydrate(session?.user.id ?? null);
+  });
+
+  return () => {
+    subscription.unsubscribe();
+    authBound = false;
+  };
 }
 
 export function subscribeToStore(listener: () => void): () => void {
@@ -172,9 +291,8 @@ export function subscribeToStore(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Cached client snapshot. Must return the same reference until storage changes. */
 export function getClientSnapshot(): StoreSnapshot {
-  return loadSnapshot();
+  return clientSnapshot;
 }
 
 export function getServerSnapshot(): StoreSnapshot {
@@ -182,7 +300,7 @@ export function getServerSnapshot(): StoreSnapshot {
 }
 
 export function getWorkouts(): Workout[] {
-  return loadSnapshot().workouts;
+  return clientSnapshot.workouts;
 }
 
 export function getWorkoutById(id: string): Workout | null {
@@ -190,37 +308,40 @@ export function getWorkoutById(id: string): Workout | null {
 }
 
 export function saveWorkout(workout: Workout): void {
-  const current = requireSnapshot();
-  const index = current.workouts.findIndex((item) => item.id === workout.id);
-  const workouts =
-    index === -1
-      ? [workout, ...current.workouts]
-      : current.workouts.map((item) => (item.id === workout.id ? workout : item));
-  commit({ ...current, workouts }, { workouts: true });
+  const userId = requireUserId();
+  const workouts = [
+    workout,
+    ...clientSnapshot.workouts.filter((item) => item.id !== workout.id),
+  ];
+  const drafts = clientSnapshot.drafts.filter((item) => item.id !== workout.id);
+  setSnapshot({ ...clientSnapshot, workouts, drafts, error: null });
+  void upsertRow(workoutToRow(userId, workout));
 }
 
 export function deleteWorkout(id: string): void {
-  const current = requireSnapshot();
-  commit(
-    {
-      ...current,
-      workouts: current.workouts.filter((workout) => workout.id !== id),
-    },
-    { workouts: true },
-  );
+  const userId = requireUserId();
+  setSnapshot({
+    ...clientSnapshot,
+    workouts: clientSnapshot.workouts.filter((workout) => workout.id !== id),
+    error: null,
+  });
+  void supabase.from("workouts").delete().eq("user_id", userId).eq("id", id).then(({ error }) => {
+    if (error) {
+      console.error(error);
+      setSnapshot({ ...clientSnapshot, error: error.message });
+    }
+  });
 }
 
 export function getLastWorkoutForExercise(exerciseId: string): {
   workout: Workout;
   sets: WorkoutSet[];
 } | null {
-  const workouts = getWorkouts()
-    .filter((workout) => workout.completed)
-    .sort((a, b) => {
-      if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-      if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
-      return 0;
-    });
+  const workouts = [...getWorkouts()].sort((a, b) => {
+    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+    if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
+    return 0;
+  });
 
   for (const workout of workouts) {
     const entry = workout.exercises.find(
@@ -233,7 +354,7 @@ export function getLastWorkoutForExercise(exerciseId: string): {
 }
 
 export function getDrafts(): DraftWorkout[] {
-  return loadSnapshot().drafts;
+  return clientSnapshot.drafts;
 }
 
 export function getDraftById(id: string): DraftWorkout | null {
@@ -253,19 +374,29 @@ export function getDraftByType(type: WorkoutType): DraftWorkout | null {
 }
 
 export function saveDraft(draft: DraftWorkout): void {
-  const current = requireSnapshot();
-  const index = current.drafts.findIndex((item) => item.id === draft.id);
-  const drafts =
-    index === -1
-      ? [draft, ...current.drafts]
-      : current.drafts.map((item) => (item.id === draft.id ? draft : item));
-  commit({ ...current, drafts }, { drafts: true });
+  const userId = requireUserId();
+  const drafts = [draft, ...clientSnapshot.drafts.filter((item) => item.id !== draft.id)];
+  setSnapshot({ ...clientSnapshot, drafts, error: null });
+  void upsertRow(draftToRow(userId, draft));
 }
 
 export function deleteDraft(id: string): void {
-  const current = requireSnapshot();
-  commit(
-    { ...current, drafts: current.drafts.filter((draft) => draft.id !== id) },
-    { drafts: true },
-  );
+  const userId = requireUserId();
+  setSnapshot({
+    ...clientSnapshot,
+    drafts: clientSnapshot.drafts.filter((draft) => draft.id !== id),
+    error: null,
+  });
+  void supabase
+    .from("workouts")
+    .delete()
+    .eq("user_id", userId)
+    .eq("id", id)
+    .eq("completed", false)
+    .then(({ error }) => {
+      if (error) {
+        console.error(error);
+        setSnapshot({ ...clientSnapshot, error: error.message });
+      }
+    });
 }
