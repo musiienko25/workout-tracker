@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/page-header";
 import { ExerciseName } from "@/components/exercises/exercise-name";
-import { WORKOUT_TYPE_META } from "@/lib/exercises";
+import { getWorkoutTypeLabel } from "@/lib/exercises";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import { formatSet, groupWorkoutsByDate, listCompletedWorkouts } from "@/lib/workout-utils";
 
@@ -35,7 +35,7 @@ export function HistoryList() {
                   className="rounded-2xl border border-zinc-200 bg-white p-4 active:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:active:bg-zinc-800"
                 >
                   <p className="text-base font-semibold">
-                    {WORKOUT_TYPE_META[workout.type].label}
+                    {getWorkoutTypeLabel(workout.type)}
                   </p>
                   <ul className="mt-3 flex flex-col gap-3">
                     {workout.exercises.map((exercise) => (

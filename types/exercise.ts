@@ -1,4 +1,4 @@
-export type WorkoutType = "full";
+export type WorkoutType = "chest_arms" | "legs_shoulders" | "back_core";
 
 export type Exercise = {
   id: string;

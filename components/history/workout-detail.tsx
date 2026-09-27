@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/page-header";
 import { ExerciseName } from "@/components/exercises/exercise-name";
-import { WORKOUT_TYPE_META } from "@/lib/exercises";
+import { getWorkoutTypeLabel } from "@/lib/exercises";
 import { deleteWorkout } from "@/lib/storage";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import { formatLongDate, formatSet } from "@/lib/workout-utils";
@@ -17,7 +17,7 @@ export function WorkoutDetail({ id }: { id: string }) {
 
   useEffect(() => {
     if (!workout) return;
-    document.title = `${WORKOUT_TYPE_META[workout.type].label} · History`;
+    document.title = `${getWorkoutTypeLabel(workout.type)} · History`;
   }, [workout]);
 
   function remove() {
@@ -49,7 +49,7 @@ export function WorkoutDetail({ id }: { id: string }) {
   return (
     <div className="flex flex-1 flex-col">
       <PageHeader
-        title={WORKOUT_TYPE_META[workout.type].label}
+        title={getWorkoutTypeLabel(workout.type)}
         eyebrow={formatLongDate(workout.date)}
         backHref="/history"
         backLabel="History"

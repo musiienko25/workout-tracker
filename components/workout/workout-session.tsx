@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ExerciseCard } from "@/components/workout/exercise-card";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
-import { WORKOUT_TYPE_META } from "@/lib/exercises";
+import { getWorkoutTypeMeta } from "@/lib/exercises";
 import { deleteDraft, saveDraft, saveWorkout } from "@/lib/storage";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import {
@@ -25,7 +25,7 @@ export function WorkoutSession({ id }: { id: string }) {
 
   useEffect(() => {
     if (!draft) return;
-    document.title = `${WORKOUT_TYPE_META[draft.type].label} · Workout`;
+    document.title = `${getWorkoutTypeMeta(draft.type).label} · Workout`;
   }, [draft]);
 
   function updateExercise(exerciseId: string, sets: DraftSet[]) {
@@ -95,7 +95,7 @@ export function WorkoutSession({ id }: { id: string }) {
     );
   }
 
-  const meta = WORKOUT_TYPE_META[draft.type];
+  const meta = getWorkoutTypeMeta(draft.type);
 
   return (
     <div className="flex flex-1 flex-col">

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { signOut } from "@/lib/auth";
-import { WORKOUT_TYPE_META } from "@/lib/exercises";
+import { getWorkoutTypeLabel } from "@/lib/exercises";
 import { useWorkoutStore } from "@/lib/use-workout-store";
 import {
   compareWorkoutsNewest,
@@ -48,7 +48,7 @@ export function HomeScreen() {
                   Last workout
                 </span>
                 <span className="text-base font-semibold">
-                  {WORKOUT_TYPE_META[latest.type].label} — {formatShortDate(latest.date)}
+                  {getWorkoutTypeLabel(latest.type)} — {formatShortDate(latest.date)}
                 </span>
               </Link>
             ) : (
@@ -70,7 +70,7 @@ export function HomeScreen() {
                     variant="secondary"
                     className="w-full"
                   >
-                    Continue {WORKOUT_TYPE_META[draft.type].label}
+                    Continue {getWorkoutTypeLabel(draft.type)}
                   </ButtonLink>
                 ))}
               </div>

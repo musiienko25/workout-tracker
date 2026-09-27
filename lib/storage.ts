@@ -1,4 +1,4 @@
-import { isWorkoutType } from "@/lib/exercises";
+import { normalizeWorkoutType } from "@/lib/exercises";
 import { seedWorkouts } from "@/lib/seed";
 import { supabase } from "@/lib/supabase";
 import type { WorkoutType } from "@/types/exercise";
@@ -70,7 +70,7 @@ function isWorkout(value: unknown): value is Workout {
     typeof workout.id === "string" &&
     typeof workout.date === "string" &&
     typeof workout.createdAt === "string" &&
-    isWorkoutType(workout.type) &&
+    normalizeWorkoutType(workout.type) !== null &&
     typeof workout.completed === "boolean" &&
     Array.isArray(workout.exercises) &&
     workout.exercises.every(
@@ -90,7 +90,7 @@ function isDraft(value: unknown): value is DraftWorkout {
     typeof draft.id === "string" &&
     typeof draft.date === "string" &&
     typeof draft.createdAt === "string" &&
-    isWorkoutType(draft.type) &&
+    normalizeWorkoutType(draft.type) !== null &&
     Array.isArray(draft.exercises) &&
     draft.exercises.every(
       (exercise) =>
@@ -109,11 +109,13 @@ function isDraft(value: unknown): value is DraftWorkout {
 }
 
 function rowToWorkout(row: WorkoutRow): Workout | null {
+  const type = normalizeWorkoutType(row.type);
+  if (!type) return null;
   const workout = {
     id: row.id,
     date: row.date,
     createdAt: row.created_at,
-    type: row.type,
+    type,
     completed: true,
     exercises: row.exercises,
   };
@@ -121,11 +123,13 @@ function rowToWorkout(row: WorkoutRow): Workout | null {
 }
 
 function rowToDraft(row: WorkoutRow): DraftWorkout | null {
+  const type = normalizeWorkoutType(row.type);
+  if (!type) return null;
   const draft = {
     id: row.id,
     date: row.date,
     createdAt: row.created_at,
-    type: row.type,
+    type,
     exercises: row.exercises,
   };
   return isDraft(draft) ? draft : null;
@@ -197,8 +201,10 @@ async function upsertRow(row: WorkoutRow): Promise<void> {
 }
 
 async function seedIfEmpty(userId: string, rows: WorkoutRow[]): Promise<WorkoutRow[]> {
-  if (rows.some((row) => row.completed)) return rows;
-  const seeded = seedWorkouts.map((workout) => workoutToRow(userId, workout));
+  const existingIds = new Set(rows.map((row) => row.id));
+  const missing = seedWorkouts.filter((workout) => !existingIds.has(workout.id));
+  if (missing.length === 0) return rows;
+  const seeded = missing.map((workout) => workoutToRow(userId, workout));
   const { error } = await supabase.from("workouts").upsert(seeded, { onConflict: "user_id,id" });
   if (error) {
     console.error(error);
