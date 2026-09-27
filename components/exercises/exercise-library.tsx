@@ -38,9 +38,22 @@ export function ExerciseLibrary() {
                 </h2>
                 <Link
                   href={`/workout/plan/${type}`}
-                  className="text-sm font-medium text-emerald-700 dark:text-emerald-400"
+                  aria-label={`Змінити план: ${WORKOUT_TYPE_META[type].label}`}
+                  className="flex h-8 w-8 items-center justify-center text-zinc-400 active:text-emerald-700 dark:active:text-emerald-400"
                 >
-                  Змінити план
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                  </svg>
                 </Link>
               </div>
               <ul className="mt-2 flex flex-col gap-2">

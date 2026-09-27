@@ -37,12 +37,12 @@ export function StartWorkout() {
           return (
             <div
               key={type}
-              className="rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+              className="flex items-stretch rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
             >
               <button
                 type="button"
                 onClick={() => start(type)}
-                className="flex min-h-20 w-full flex-col items-start justify-center px-4 py-4 text-left active:bg-zinc-50 dark:active:bg-zinc-800"
+                className="flex min-h-20 min-w-0 flex-1 flex-col items-start justify-center px-4 py-4 text-left active:bg-zinc-50 dark:active:bg-zinc-800"
               >
                 <span className="text-lg font-semibold">{meta.label}</span>
                 <span className="text-sm text-zinc-500">{meta.description}</span>
@@ -54,9 +54,22 @@ export function StartWorkout() {
               </button>
               <Link
                 href={`/workout/plan/${type}`}
-                className="flex h-12 items-center border-t border-zinc-200 px-4 text-sm font-medium text-emerald-700 dark:border-zinc-800 dark:text-emerald-400"
+                aria-label={`Змінити план: ${meta.label}`}
+                className="flex w-12 shrink-0 items-center justify-center text-zinc-400 active:text-emerald-700 dark:active:text-emerald-400"
               >
-                Змінити план
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
               </Link>
             </div>
           );

@@ -139,7 +139,7 @@ export function WorkoutSession({ id }: { id: string }) {
         backHref="/"
         backLabel="Home"
       />
-      <main className="flex flex-col gap-4 px-4 py-4 pb-40">
+      <main className="flex flex-col gap-4 px-4 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <p className="text-sm text-zinc-500">
           Today starts from your last session. Можна додати або прибрати вправи лише для цього дня.
         </p>
@@ -202,24 +202,20 @@ export function WorkoutSession({ id }: { id: string }) {
         >
           Discard workout
         </button>
+        {message ? (
+          <p
+            className={`text-sm font-medium ${
+              message.startsWith("Шаблон") ? "text-emerald-700 dark:text-emerald-400" : "text-red-600"
+            }`}
+            role="alert"
+          >
+            {message}
+          </p>
+        ) : null}
+        <Button size="lg" className="w-full" onClick={finish}>
+          Finish Workout
+        </Button>
       </main>
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mx-auto w-full max-w-lg px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {message ? (
-            <p
-              className={`mb-2 text-sm font-medium ${
-                message.startsWith("Шаблон") ? "text-emerald-700 dark:text-emerald-400" : "text-red-600"
-              }`}
-              role="alert"
-            >
-              {message}
-            </p>
-          ) : null}
-          <Button size="lg" className="w-full" onClick={finish}>
-            Finish Workout
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
